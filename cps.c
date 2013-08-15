@@ -63,6 +63,7 @@ int make_tree(char *source, char *target) {
   }
   if(S_ISREG(st.st_mode)){
     printf("LNK: %s -> %s\n", source, target);
+    //create symlink here
     //snprintf(buf, sizeof(target)+sizeof(source), "%s/%s", source,target);
   }
 }
