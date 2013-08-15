@@ -35,22 +35,26 @@ int print_error(int exit_code, char message[256], ... ) {
   if(help) print_help();
   exit(exit_code);
 }
-int make_tree(char *el, char *prev) {
+int make_tree(char *source, char *target) {
   DIR *dp;
   struct dirent *ep;
   struct stat st;
-  char buf[256];
-  sprintf(buf, "No such file/directory: %s", el);
-  if(stat(el, &st) != 0) print_error(errno, buf, 0);
+  char buf[PATH_MAX], tbuf[PATH_MAX];
+  if(stat(source, &st) != 0) {
+    sprintf(buf, "%s: %s", strerror(errno),source);
+    print_error(errno, buf, 0);
+  }
   if(S_ISDIR(st.st_mode)) {
-    printf("%s \n", el);
-    dp = opendir(el);
+    //mkdir(target, st.st_mode);
+    printf("DIR: %s -> %s\n", source, target);
+    dp = opendir(source);
     if(dp != NULL) {
       while(ep = readdir(dp)) {
         if(!strcmp(ep->d_name, ".")) continue;
         if(!strcmp(ep->d_name, "..")) continue;
-        snprintf(buf, sizeof(el)+sizeof(ep->d_name), "%s/%s", el, ep->d_name);
-        make_tree(buf, el);
+        snprintf(buf, sizeof(source)+sizeof(ep->d_name), "%s/%s", source, ep->d_name);
+        snprintf(tbuf, sizeof(target)+sizeof(ep->d_name), "%s/%s", target, ep->d_name);
+        make_tree(buf, tbuf);
       }
       (void) closedir(dp);
     } else {
@@ -58,6 +62,8 @@ int make_tree(char *el, char *prev) {
     }
   }
   if(S_ISREG(st.st_mode)){
+    printf("LNK: %s -> %s\n", source, target);
+    //snprintf(buf, sizeof(target)+sizeof(source), "%s/%s", source,target);
   }
 }
 
