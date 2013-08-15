@@ -5,13 +5,18 @@
 #include <stdarg.h>
 #include <errno.h>
 #include <sys/stat.h>
-
+#include <sys/types.h>
+#include <dirent.h>
+#include <string.h>
+#include <limits.h>
 
 typedef struct {
   int absolute, recurse, force;
   char *source, *target;
   struct stat sstat, tstat;
 } Arguments;
+
+Arguments args;
 
 void print_help() {
   fprintf(stdout, "Usage: cps -afr SOURCE TARGET\n");
@@ -30,18 +35,34 @@ int print_error(int exit_code, char message[256], ... ) {
   if(help) print_help();
   exit(exit_code);
 }
-
-void create_link(Arguments args) {
-  if(S_ISREG(args.sstat.st_mode)) {
-    //Regular file
-    //Just create a softlink
+int make_tree(char *el, char *prev) {
+  DIR *dp;
+  struct dirent *ep;
+  struct stat st;
+  char buf[256];
+  sprintf(buf, "No such file/directory: %s", el);
+  if(stat(el, &st) != 0) print_error(errno, buf, 0);
+  if(S_ISDIR(st.st_mode)) {
+    printf("%s \n", el);
+    dp = opendir(el);
+    if(dp != NULL) {
+      while(ep = readdir(dp)) {
+        if(!strcmp(ep->d_name, ".")) continue;
+        if(!strcmp(ep->d_name, "..")) continue;
+        snprintf(buf, sizeof(el)+sizeof(ep->d_name), "%s/%s", el, ep->d_name);
+        make_tree(buf, el);
+      }
+      (void) closedir(dp);
+    } else {
+      print_error(errno, strerror(errno));
+    }
   }
-  if(S_ISDIR(args.sstat.st_mode)) printf("Directory");
+  if(S_ISREG(st.st_mode)){
+  }
 }
 
 int main(int argc, char **argv) {
-  int c, index;
-  Arguments args;
+  int c;
 
   while( (c = getopt(argc, argv, "arf")) != -1) {
     switch(c) {
@@ -67,15 +88,16 @@ int main(int argc, char **argv) {
   else print_error(2,"Target linkname not specified");
   //Ignore all other arguments after source and target
 
-  //Finally the implementation
+  //Check if SOURCE exists
   if(stat(args.source, &(args.sstat)) != 0) print_error(errno, "No such file/directory specified as SOURCE");
 
   //make sure TARGET is not present already
   if(stat(args.target, &(args.tstat)) != 0) {
-    create_link(args);
+    make_tree(args.source, args.target);
   } else {
-    if(args.force) create_link(args);
-    else print_error(4,"TARGET already exists. Use -f to override.");
+    //If force is enabled, recreate link
+    if(args.force) make_tree(args.source, args.target);
+    else print_error(EEXIST, "TARGET already exists. Use -f to override.");
   }
 
   exit(0);
