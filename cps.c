@@ -1,53 +1,39 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <getopt.h>
-
-// Flag set by --verbose
-static int verbose_flag;
+#include <unistd.h>
+#include <ctype.h>
 
 int main(int argc, char **argv) {
-  int c;
-  while(1) {
-    static struct option long_options[] = {
-      {"verbose", no_argument, &verbose_flag, 1},
-      {"brief", no_argument, &verbose_flag, 0},
-      //Other options
-      {"absolute", no_argument, 0, 'a'},
-      {"recurse", no_argument, 0, 'r'},
-      {"force", no_argument, 0, 'f'},
-      { 0,0,0,0 }
-    };
-    int option_index = 0;
-    c = getopt_long(argc, argv, "arf", long_options, &option_index);
-    if(c == -1) break;
+  int c, index;
+  typedef struct {
+    int absolute, recurse, force;
+    char *source, *target;
+  } Arguments;
+  Arguments args;
+  while( (c = getopt(argc, argv, "arf")) != -1) {
     switch(c) {
-    case 0:
-      if(long_options[option_index].flag != 0) break;
-      printf("option %s", long_options[option_index].name );
-      if(optarg) printf(" with arg %s", optarg);
-      printf("\n");
-      break;
     case 'a':
-      puts("option a \n");
+      args.absolute = 1;
       break;
     case 'f':
-      puts("option f \n");
+      args.force = 1;
       break;
     case 'r':
-      puts("option recursive \n");
-      break;
-    case '?':
-      //getopt_long already printed an error message
+      args.recurse = 1;
       break;
     default:
       abort();
     }
   }
-  if(verbose_flag) puts("Verbose flag is set");
-  if(optind < argc) {
-    printf("No arguments ");
-    while(optind < argc) printf("%s ", argv[optind++]);
-    putchar('\n');
-  }
+  //Get Source Directory or filename
+  if(optind < argc) args.source = argv[optind++];
+  else abort();
+  //Get Target Directory Name
+  //Ignore all other arguments after source and target
+  if(optind < argc) args.target = argv[optind++];
+  else abort();
+
+  printf("%s %s\n", args.source, args.target);
+
   exit(0);
 }
