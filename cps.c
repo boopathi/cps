@@ -26,10 +26,10 @@ typedef struct {
 Subs rep;
 
 void print_help() {
-  fprintf(stdout, "Usage: cps -afr SOURCE TARGET\n");
+  fprintf(stdout, "Usage: cps -akv [ -s 'source1/replace1' ] SOURCE TARGET\n");
   fprintf(stdout, "%*s\t Use absolute paths instead of relative\n",7,"-a");
-  fprintf(stdout, "%*s\t Force create links and directories if already present\n",7,"-f");
-  fprintf(stdout, "%*s\t Recurse sub-directories\n",7,"-r");
+  fprintf(stdout, "%*s\t Skip throwing errors \n",7,"-k");
+  fprintf(stdout, "%*s\t Verbose mode\n",7,"-v");
   fprintf(stdout, "%*s\t Source file/directory\n",7,"SOURCE");
   fprintf(stdout, "%*s\t Target linkname\n",7,"TARGET");
 }
@@ -37,11 +37,10 @@ int print_error(int exit_code, char message[256], ... ) {
   va_list ap;
   va_start(ap, message);
   int help=va_arg(ap,int);
-  int isexit=va_arg(ap,int);
   va_end(ap);
   fprintf(stderr, "ERROR: %s\n\n", message);
   if(help) print_help();
-  if(isexit) exit(exit_code);
+  exit(exit_code);
 }
 
 char *
@@ -111,7 +110,7 @@ int make_tree(char *source, char *target) {
     //create symlink here
     //snprintf(buf, sizeof(target)+sizeof(source), "%s/%s", source,target);
     if(symlink(source, target) != 0 )
-      print_error(errno, strerror(errno), 0, !args.skip);
+      print_error(errno, strerror(errno), 0, 0);
   }
 }
 
@@ -165,7 +164,7 @@ int main(int argc, char **argv) {
   //make sure TARGET is not present already
   if(stat(args.target, &(args.tstat)) != 0)
     make_tree(args.source, args.target);
-  else print_error(EEXIST, "TARGET already exists. Use -f to override.");
+  else print_error(EEXIST, "TARGET already exists.");
 
   return 0;
 }
