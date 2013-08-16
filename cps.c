@@ -11,7 +11,7 @@
 #include <limits.h>
 
 typedef struct {
-  int absolute, recurse, force;
+  int absolute, skip, verbose;
   char *source, *target;
   struct stat sstat, tstat;
 } Arguments;
@@ -37,10 +37,11 @@ int print_error(int exit_code, char message[256], ... ) {
   va_list ap;
   va_start(ap, message);
   int help=va_arg(ap,int);
+  int isexit=va_arg(ap,int);
   va_end(ap);
   fprintf(stderr, "ERROR: %s\n\n", message);
   if(help) print_help();
-  exit(exit_code);
+  if(isexit) exit(exit_code);
 }
 
 char *
@@ -89,7 +90,7 @@ int make_tree(char *source, char *target) {
   }
   if(S_ISDIR(st.st_mode)) {
     mkdir(target, st.st_mode);
-    printf("DIR: %s -> %s\n", source, target);
+    if(args.verbose) printf("DIR: %s -> %s\n", source, target);
     dp = opendir(source);
     if(dp != NULL) {
       while(ep = readdir(dp)) {
@@ -102,15 +103,15 @@ int make_tree(char *source, char *target) {
       }
       (void) closedir(dp);
     } else {
-      print_error(errno, strerror(errno));
+      print_error(errno, strerror(errno), 0);
     }
   }
   if(S_ISREG(st.st_mode)){
-    printf("LNK: %s -> %s\n", source, target);
+    if(args.verbose) printf("LNK: %s -> %s\n", source, target);
     //create symlink here
     //snprintf(buf, sizeof(target)+sizeof(source), "%s/%s", source,target);
     if(symlink(source, target) != 0 )
-      print_error(errno, strerror(errno));
+      print_error(errno, strerror(errno), 0, 0);
   }
 }
 
@@ -119,18 +120,20 @@ int main(int argc, char **argv) {
   char *s, *where, *tmp;
 
   rep.l = 0;
+  args.absolute = 0;
+  args.skip = 0;
+  args.verbose = 0;
 
-  while( (c = getopt(argc, argv, "arfs:")) != -1) {
+  while( (c = getopt(argc, argv, "akvs:")) != -1) {
     switch(c) {
     case 'a':
       args.absolute = 1;
       break;
-    case 'f':
-      args.force = 1;
+    case 'k':
+      args.skip = 1;
       break;
-    case 'r':
-      args.recurse = 1;
-      break;
+    case 'v':
+      args.verbose = 1;
     case 's':
       optind--;
       tmp = argv[optind++];
@@ -160,13 +163,9 @@ int main(int argc, char **argv) {
   if(stat(args.source, &(args.sstat)) != 0) print_error(errno, "No such file/directory specified as SOURCE");
 
   //make sure TARGET is not present already
-  if(stat(args.target, &(args.tstat)) != 0) {
+  if(stat(args.target, &(args.tstat)) != 0)
     make_tree(args.source, args.target);
-  } else {
-    //If force is enabled, recreate link
-    if(args.force) make_tree(args.source, args.target);
-    else print_error(EEXIST, "TARGET already exists. Use -f to override.");
-  }
+  else print_error(EEXIST, "TARGET already exists. Use -f to override.");
 
-  exit(0);
+  return 0;
 }
