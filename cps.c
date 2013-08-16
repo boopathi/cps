@@ -111,7 +111,7 @@ int make_tree(char *source, char *target) {
     //create symlink here
     //snprintf(buf, sizeof(target)+sizeof(source), "%s/%s", source,target);
     if(symlink(source, target) != 0 )
-      print_error(errno, strerror(errno), 0, 0);
+      print_error(errno, strerror(errno), 0, !args.skip);
   }
 }
 
