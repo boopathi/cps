@@ -18,6 +18,13 @@ typedef struct {
 
 Arguments args;
 
+typedef struct {
+  char d[1024][2][256];
+  int l;
+} Subs;
+
+Subs rep;
+
 void print_help() {
   fprintf(stdout, "Usage: cps -afr SOURCE TARGET\n");
   fprintf(stdout, "%*s\t Use absolute paths instead of relative\n",7,"-a");
@@ -35,6 +42,30 @@ int print_error(int exit_code, char message[256], ... ) {
   if(help) print_help();
   exit(exit_code);
 }
+
+void apply_subs(char *source, char **target) {
+  int i;
+  int slen = strlen(source), flen, tlen;
+  char *p, *q, *where, *from, *to;
+  target = malloc(tlen + slen + 1);
+  for(i=0;i<rep.l;i++) {
+    from = rep.d[i][0];
+    to = rep.d[i][1];
+    flen = strlen(from);
+    tlen = strlen(to);
+    where = strstr(source, from);
+    if(where == NULL) continue;
+    p = source;
+    q = *target;
+    while(p<where) *q++ = *p++;
+    p = to;
+    while(*p) *q++ = *p++;
+    p = where + flen;
+    while(*p) *q++ = *p++;
+    *q = 0;
+  }
+}
+
 int make_tree(char *source, char *target) {
   DIR *dp;
   struct dirent *ep;
@@ -46,6 +77,7 @@ int make_tree(char *source, char *target) {
   }
   if(S_ISDIR(st.st_mode)) {
     //mkdir(target, st.st_mode);
+    apply_subs(source, &target);
     printf("DIR: %s -> %s\n", source, target);
     dp = opendir(source);
     if(dp != NULL) {
@@ -69,9 +101,12 @@ int make_tree(char *source, char *target) {
 }
 
 int main(int argc, char **argv) {
-  int c;
+  int c,i;
+  char *s, *where, *tmp;
 
-  while( (c = getopt(argc, argv, "arf")) != -1) {
+  rep.l = 0;
+
+  while( (c = getopt(argc, argv, "arfs:")) != -1) {
     switch(c) {
     case 'a':
       args.absolute = 1;
@@ -81,6 +116,18 @@ int main(int argc, char **argv) {
       break;
     case 'r':
       args.recurse = 1;
+      break;
+    case 's':
+      optind--;
+      tmp = argv[optind++];
+      s = malloc(strlen(tmp) + 1);
+      for(i=0;i<strlen(tmp);i++) s[i] = tmp[i];
+      i=0;
+      while(*s != '/' && *s != '\0') rep.d[rep.l][0][i++] = *s++;
+      s++; i=0;
+      while(*s != '/' && *s != '\0') rep.d[rep.l][1][i++] = *s++;
+      rep.l++;
+      *s = 0;
       break;
     default:
       print_help();
