@@ -43,41 +43,52 @@ int print_error(int exit_code, char message[256], ... ) {
   exit(exit_code);
 }
 
-void apply_subs(char *source, char **target) {
-  int i;
-  int slen = strlen(source), flen, tlen;
-  char *p, *q, *where, *from, *to;
-  target = malloc(tlen + slen + 1);
-  for(i=0;i<rep.l;i++) {
-    from = rep.d[i][0];
-    to = rep.d[i][1];
-    flen = strlen(from);
-    tlen = strlen(to);
-    where = strstr(source, from);
-    if(where == NULL) continue;
-    p = source;
-    q = *target;
-    while(p<where) *q++ = *p++;
-    p = to;
-    while(*p) *q++ = *p++;
-    p = where + flen;
-    while(*p) *q++ = *p++;
-    *q = 0;
+char *
+str_replace ( const char *string, const char *substr, const char *replacement ){
+  char *tok = NULL;
+  char *newstr = NULL;
+  char *oldstr = NULL;
+
+  /* if either substr or replacement is NULL, duplicate string a let caller handle it */
+  if ( substr == NULL || replacement == NULL ) return strdup (string);
+  newstr = strdup (string);
+  while ( (tok = strstr ( newstr, substr ))){
+    oldstr = newstr;
+    newstr = malloc ( strlen ( oldstr ) - strlen ( substr ) + strlen ( replacement ) + 1 );
+    /*failed to alloc mem, free old string and return NULL */
+    if ( newstr == NULL ){
+      free (oldstr);
+      return NULL;
+    }
+    memcpy ( newstr, oldstr, tok - oldstr );
+    memcpy ( newstr + (tok - oldstr), replacement, strlen ( replacement ) );
+    memcpy ( newstr + (tok - oldstr) + strlen( replacement ), tok + strlen ( substr ), strlen ( oldstr ) - strlen ( substr ) - ( tok - oldstr ) );
+    memset ( newstr + strlen ( oldstr ) - strlen ( substr ) + strlen ( replacement ) , 0, 1 );
+    free (oldstr);
   }
+  return newstr;
+}
+
+char *apply_subs(char *p) {
+  int i;
+  char *q[2];
+  q[0] = str_replace(p, rep.d[0][0], rep.d[0][1]);
+  for(i=1;i<rep.l;i++)
+    q[i%2] = str_replace(q[(i+1)%2], rep.d[i][0], rep.d[i][1]);
+  return q[(i+1)%2];
 }
 
 int make_tree(char *source, char *target) {
   DIR *dp;
   struct dirent *ep;
   struct stat st;
-  char buf[PATH_MAX], tbuf[PATH_MAX];
+  char buf[PATH_MAX], tbuf[PATH_MAX], *tmp;
   if(stat(source, &st) != 0) {
     sprintf(buf, "%s: %s", strerror(errno),source);
     print_error(errno, buf, 0);
   }
   if(S_ISDIR(st.st_mode)) {
     //mkdir(target, st.st_mode);
-    apply_subs(source, &target);
     printf("DIR: %s -> %s\n", source, target);
     dp = opendir(source);
     if(dp != NULL) {
@@ -85,7 +96,8 @@ int make_tree(char *source, char *target) {
         if(!strcmp(ep->d_name, ".")) continue;
         if(!strcmp(ep->d_name, "..")) continue;
         snprintf(buf, sizeof(source)+sizeof(ep->d_name), "%s/%s", source, ep->d_name);
-        snprintf(tbuf, sizeof(target)+sizeof(ep->d_name), "%s/%s", target, ep->d_name);
+        tmp = apply_subs(ep->d_name);
+        snprintf(tbuf, sizeof(target)+sizeof(tmp), "%s/%s", target, tmp);
         make_tree(buf, tbuf);
       }
       (void) closedir(dp);
