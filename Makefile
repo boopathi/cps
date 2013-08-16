@@ -1,9 +1,8 @@
 all:
-	mkdir -p build
-	cc -o build/cps cps.c
+	cc -o cps cps.c
 
 install:
-	cp build/cps /usr/bin/
+	cp cps /usr/bin/
 
 clean:
-	rm -rf build
+	rm -f cps
