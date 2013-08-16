@@ -69,7 +69,7 @@ str_replace ( const char *string, const char *substr, const char *replacement ){
   return newstr;
 }
 
-char *apply_subs(char *p) {
+char *apply_subs(const char *p) {
   int i;
   char *q[2];
   q[0] = str_replace(p, rep.d[0][0], rep.d[0][1]);
@@ -88,7 +88,7 @@ int make_tree(char *source, char *target) {
     print_error(errno, buf, 0);
   }
   if(S_ISDIR(st.st_mode)) {
-    //mkdir(target, st.st_mode);
+    mkdir(target, st.st_mode);
     printf("DIR: %s -> %s\n", source, target);
     dp = opendir(source);
     if(dp != NULL) {
@@ -109,6 +109,8 @@ int make_tree(char *source, char *target) {
     printf("LNK: %s -> %s\n", source, target);
     //create symlink here
     //snprintf(buf, sizeof(target)+sizeof(source), "%s/%s", source,target);
+    if(symlink(source, target) != 0 )
+      print_error(errno, strerror(errno));
   }
 }
 
